@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Copyright (c) 2012, Helder Correia <helder.pereira.correia@gmail.com>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are those
+# of the authors and should not be interpreted as representing official policies,
+# either expressed or implied, of the FreeBSD Project.
+
+inRecursiveMode=0
+inSimulationMode=0
+inVerboseMode=0
+totalPhotosFound=0
+totalPhotosRenamed=0
+findCommand="find -P . -maxdepth 1"
+
+for argument in "$@"; do
+    if [ "$argument" == "-r" ]; then
+        inRecursiveMode=1
+        findCommand="find -P ."
+    elif [ "$argument" == "-s" ]; then
+        inSimulationMode=1
+        echo "Simulation mode on"
+    elif [ "$argument" == "-v" ]; then
+        inVerboseMode=1
+    elif [ "$argument" == "-h" ]; then
+        echo "Usage: $(basename "$0") [option1] [option2] ..."
+        echo "  options:"
+        echo "    -v : Print real-time renaming actions (verbose mode)"
+        echo "    -r : Run in all subdirectories too (recursive mode)"
+        echo "    -s : Don't rename any file (simulation mode)."
+        echo "    -h : Print this help screen"
+        exit 0
+    fi
+done
+
+while read -r fileName; do
+    ((totalPhotosFound++))
+
+    dirPath=$(dirname "$fileName")
+    timestamp=$(exif -t 0x0132 "$fileName" 2>/dev/null | grep "Value:" | tr -d "[Value: ]")
+    timestamp=${timestamp:0:14} # More than one 0x0132 record may be returned, keep only first.
+    newFileName="$dirPath/$timestamp.jpg"
+
+    if [ "$timestamp" == "" -o "$timestamp" == "00000000000000" -o "$fileName" == "$newFileName" ]; then
+        continue
+    fi
+
+    if [ "$inVerboseMode" == "1" ]; then
+        noDotPrefixFileName=${fileName:2:${#fileName}}
+        noDotPrefixNewFileName=${newFileName:2:${#newFileName}}
+        echo "$noDotPrefixFileName -> $noDotPrefixNewFileName"
+    fi
+
+    if [ "$inSimulationMode" != "1" ]; then
+        mv "$fileName" "$newFileName"
+    fi
+
+    ((totalPhotosRenamed++))
+done < <($findCommand -type f -iname '*.jpg' -o -iname '*.jpeg')
+
+echo "Renamed $totalPhotosRenamed of $totalPhotosFound"
