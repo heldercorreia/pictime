@@ -59,6 +59,12 @@ while read -r fileName; do
 
     dirPath=$(dirname "$fileName")
     timestamp=$(exif -t 0x0132 "$fileName" 2>/dev/null | grep "Value:" | tr -d "[Value: ]")
+
+    if [ "$timestamp" == "" ]; then
+        # Some photos, like the ones saved by Windows Phone 7, only contain fields 0x9003 and 0x9004.
+        timestamp=$(exif -t 0x9003 "$fileName" 2>/dev/null | grep "Value:" | tr -d "[Value: ]")
+    fi
+
     timestamp=${timestamp:0:14} # More than one 0x0132 record may be returned, keep only first.
     newFileName="$dirPath/$timestamp.jpg"
 
