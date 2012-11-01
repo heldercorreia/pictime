@@ -54,6 +54,11 @@ for argument in "$@"; do
     fi
 done
 
+if [ "$(which exif)" == "" ]; then
+    echo "Error: exif is not installed or not in \$PATH"
+    exit 1
+fi
+
 while read -r fileName; do
     ((totalPhotosFound++))
 
